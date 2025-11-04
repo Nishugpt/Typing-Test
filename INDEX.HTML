@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Type-Tech: The Tech Typing Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .data-snippet {
+            font-family: 'Roboto Mono', monospace;
+            background-color: #1e293b;
+            color: #e2e8f0;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            letter-spacing: 1px;
+            font-size: 1.125rem;
+            line-height: 1.75rem;
+            user-select: none;
+        }
+
+        .data-snippet span {
+            transition: all 0.1s ease;
+        }
+
+        .current-char {
+            background-color: #4f46e5;
+            border-radius: 2px;
+        }
+
+        .correct {
+            color: #22c55e;
+        }
+
+        .incorrect {
+            color: #ef4444;
+            text-decoration: underline;
+        }
+
+        .focused {
+            outline: 2px solid #4f46e5;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.4);
+        }
+
+        .error-char {
+            display: inline-block;
+            font-family: 'Roboto Mono', monospace;
+            background-color: #fee2e2;
+            color: #b91c1c;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 500;
+            margin: 0.125rem;
+        }
+
+        .mode-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+
+        .active-mode {
+            background-color: white;
+            color: #4f46e5;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        html.dark .active-mode {
+            background-color: #374151;
+            color: #e5e7eb;
+        }
+
+        .analysis-pair {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        @keyframes glow {
+
+            0%,
+            100% {
+                text-shadow: 0 0 5px #4f46e5, 0 0 10px #4f46e5;
+            }
+
+            50% {
+                text-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+            }
+        }
+
+        .title-glow {
+            animation: glow 4s ease-in-out infinite;
+        }
+
+        @keyframes stat-pop {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.15);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .stat-update {
+            animation: stat-pop 0.3s ease-out;
+        }
+
+        /* New Feature Styles */
+        .achievement-badge {
+            transition: all 0.3s ease;
+            filter: grayscale(1);
+            opacity: 0.6;
+        }
+
+        .achievement-badge.unlocked {
+            filter: grayscale(0);
+            opacity: 1;
+            transform: scale(1.05);
+        }
+
+        @keyframes toast-in {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes toast-out {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+        }
+
+        .toast {
+            animation: toast-in 0.5s ease forwards;
+        }
+
+        .toast.closing {
+            animation: toast-out 0.5s ease forwards;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gradient-to-br from-slate-100 to-sky-100 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center min-h-screen p-4 sm:p-6 transition-colors duration-300">
+
+    <div class="w-full max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 sm:p-8 space-y-6">
+
+        <div class="text-center relative">
+            <h1
+                class="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-sky-500 bg-clip-text text-transparent title-glow">
+                Type-Tech</h1>
+            <p id="subtitle" class="text-slate-500 dark:text-slate-400 mt-2">Increase your speed by typing tech facts
+                and code!</p>
+            <button id="mute-button" class="absolute top-0 right-0 p-2 text-slate-400 hover:text-indigo-500" style="display: none;">
+                <svg id="icon-unmuted" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                <svg id="icon-muted" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 text-center">
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg">
+                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Current Streak</p>
+                <p id="current-streak" class="text-2xl font-semibold text-slate-700 dark:text-slate-200">0 Days 🔥</p>
+            </div>
+            <div class="bg-slate-100 dark:bg-slate-700/50 p-3 rounded-lg">
+                <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Active Days</p>
+                <p id="total-days" class="text-2xl font-semibold text-slate-700 dark:text-slate-200">0 Days 🗓️</p>
+            </div>
+        </div>
+
+        <div class="flex justify-center items-center">
+            <div
+                class="flex flex-wrap justify-center rounded-lg bg-slate-200 dark:bg-slate-700 p-1 text-slate-600 dark:text-slate-300">
+                <button id="mode-snippet" class="mode-btn active-mode">Snippets</button>
+                <button id="mode-rush" class="mode-btn">Tech Rush</button>
+                <button id="mode-symbols" class="mode-btn">Symbol Sprint</button>
+                <button id="mode-workout" class="mode-btn">Workout</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+            <div
+                class="col-span-2 sm:col-span-1 bg-violet-100 dark:bg-violet-900/50 text-violet-800 dark:text-violet-300 p-4 rounded-lg">
+                <p class="text-sm font-medium">Tech Score</p>
+                <p id="tech-score" class="text-2xl font-semibold">0</p>
+            </div>
+            <div class="bg-sky-100 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 p-4 rounded-lg">
+                <p class="text-sm font-medium">Time</p>
+                <p id="timer" class="text-2xl font-semibold">0s</p>
+            </div>
+            <div class="bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 p-4 rounded-lg">
+                <p class="text-sm font-medium">WPM</p>
+                <p id="wpm" class="text-2xl font-semibold">0</p>
+            </div>
+            <div class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 p-4 rounded-lg">
+                <p class="text-sm font-medium">Accuracy</p>
+                <p id="accuracy" class="text-2xl font-semibold">100%</p>
+            </div>
+            <div class="bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-300 p-4 rounded-lg">
+                <p class="text-sm font-medium">Consistency</p>
+                <p id="consistency" class="text-2xl font-semibold">--</p>
+            </div>
+        </div>
+
+        <div class="h-24"><canvas id="live-wpm-chart"></canvas></div>
+        <div id="snippet-display" class="data-snippet"></div>
+        <textarea id="typing-input" class="absolute opacity-0 w-0 h-0" autofocus></textarea>
+
+        <div id="error-analysis-section" class="hidden text-center p-4 bg-red-50 dark:bg-red-900/50 rounded-lg">
+            <h3 class="font-semibold text-red-800 dark:text-red-300">Your Most Common Mistakes:</h3>
+            <div id="error-list" class="mt-2 text-red-700 dark:text-red-400"></div>
+        </div>
+
+        <div id="keystroke-analysis-section" class="hidden p-4 bg-blue-50 dark:bg-blue-900/50 rounded-lg">
+            <h3 class="text-center font-semibold text-blue-800 dark:text-blue-300">Keystroke Analysis</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-sm">
+                <div>
+                    <h4 class="font-semibold text-green-700 dark:text-green-400">Fastest Key Pairs</h4>
+                    <div id="fastest-pairs" class="mt-1 space-y-1"></div>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-red-700 dark:text-red-400">Slowest Key Pairs</h4>
+                    <div id="slowest-pairs" class="mt-1 space-y-1"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-center items-center space-x-4">
+            <button id="reset-button"
+                class="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md hover:shadow-lg dark:focus:ring-offset-slate-800">New
+                Challenge</button>
+            <button id="custom-text-btn" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">Practice
+                custom text</button>
+        </div>
+
+        <div id="achievements-section" class="pt-6 border-t border-slate-200 dark:border-slate-700">
+            <h2 class="text-xl font-bold text-slate-700 dark:text-slate-200 mb-3 text-center sm:text-left">🏆 Trophy
+                Case</h2>
+            <div id="achievements-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                </div>
+        </div>
+
+        <div id="history-section" class="pt-6 border-t border-slate-200 dark:border-slate-700">
+            <h2 class="text-xl font-bold text-slate-700 dark:text-slate-200 mb-3">Your Progress History</h2>
+            <div class="mb-4"><canvas id="history-chart"></canvas></div>
+            <div id="history-list" class="space-y-3 text-slate-600 dark:text-slate-400"></div>
+            <button id="clear-history-button"
+                class="mt-4 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">Clear
+                History</button>
+        </div>
+    </div>
+
+    <div id="custom-text-modal" class="hidden fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white dark:bg-slate-800 p-6 rounded-lg w-full max-w-lg space-y-4 shadow-2xl">
+            <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100">Practice Your Own Text</h3>
+            <textarea id="custom-text-input"
+                class="w-full h-40 p-3 border rounded-md bg-slate-50 dark:bg-slate-700 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                placeholder="Paste your code or text here (at least 20 characters)..."></textarea>
+            <div class="flex justify-end space-x-3">
+                <button id="custom-text-cancel"
+                    class="py-2 px-4 rounded-md font-semibold bg-slate-200 dark:bg-slate-600 hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors">Cancel</button>
+                <button id="custom-text-start"
+                    class="py-2 px-4 rounded-md font-semibold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">Start
+                    Typing</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="achievement-toast"
+        class="hidden fixed bottom-5 right-5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-4 rounded-lg shadow-xl z-50 w-full max-w-xs">
+        <div class="flex items-center space-x-3">
+            <div id="toast-icon" class="text-3xl"></div>
+            <div>
+                <p class="font-bold">Achievement Unlocked!</p>
+                <p id="toast-name" class="text-sm"></p>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audio-keypress" src="path/to/keypress.mp3" preload="auto"></audio>
+    <audio id="audio-error" src="path/to/error.mp3" preload="auto"></audio>
+    <audio id="audio-complete" src="path/to/complete.mp3" preload="auto"></audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const techScoreEl = document.getElementById('tech-score');
+            const timerEl = document.getElementById('timer');
+            const wpmEl = document.getElementById('wpm');
+            const accuracyEl = document.getElementById('accuracy');
+            const consistencyEl = document.getElementById('consistency');
+            const subtitle = document.getElementById('subtitle');
+            const snippetDisplay = document.getElementById('snippet-display');
+            const typingInput = document.getElementById('typing-input');
+            const resetButton = document.getElementById('reset-button');
+            const muteButton = document.getElementById('mute-button');
+            const iconUnmuted = document.getElementById('icon-unmuted');
+            const iconMuted = document.getElementById('icon-muted');
+            const audioKeypress = document.getElementById('audio-keypress');
+            const audioError = document.getElementById('audio-error');
+            const audioComplete = document.getElementById('audio-complete');
+            // Mode Buttons
+            const modeSnippetBtn = document.getElementById('mode-snippet');
+            const modeRushBtn = document.getElementById('mode-rush');
+            const modeSymbolsBtn = document.getElementById('mode-symbols');
+            const modeWorkoutBtn = document.getElementById('mode-workout'); // New
+            // Analysis Sections
+            const errorAnalysisSection = document.getElementById('error-analysis-section');
+            const errorList = document.getElementById('error-list');
+            const keystrokeAnalysisSection = document.getElementById('keystroke-analysis-section');
+            const fastestPairsEl = document.getElementById('fastest-pairs');
+            const slowestPairsEl = document.getElementById('slowest-pairs');
+            // History & Charts
+            const historyList = document.getElementById('history-list');
+            const clearHistoryButton = document.getElementById('clear-history-button');
+            const chartCanvas = document.getElementById('history-chart');
+            const liveWpmCanvas = document.getElementById('live-wpm-chart');
+            // Activity Tracker DOM Elements
+            const currentStreakEl = document.getElementById('current-streak');
+            const totalDaysEl = document.getElementById('total-days');
+            // New Feature DOM Elements
+            const customTextBtn = document.getElementById('custom-text-btn');
+            const customTextModal = document.getElementById('custom-text-modal');
+            const customTextInput = document.getElementById('custom-text-input');
+            const customTextStartBtn = document.getElementById('custom-text-start');
+            const customTextCancelBtn = document.getElementById('custom-text-cancel');
+            const achievementsList = document.getElementById('achievements-list');
+            const achievementToast = document.getElementById('achievement-toast');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastName = document.getElementById('toast-name');
+
+            // --- Data Snippets ---
+            const snippets = ["import pandas as pd", "df.head()", "from sklearn.model_selection import train_test_split", "SELECT COUNT(*) FROM users;", "A dictionary stores data in key-value pairs.", "Regression models predict continuous numerical values.", "Classification models predict a category or class."];
+            const paragraphSnippets = ["The first gigabyte hard drive, the IBM 3380, was released in 1980. It weighed over 550 pounds (250 kg) and cost $40,000! Today, a 1TB microSD card holds 1,000 times more data and fits on a fingertip.", "A quantum computer uses qubits, which can be a 1, 0, or both at the same time (superposition). This allows it to solve complex problems exponentially faster than classical computers."];
+            const symbolSnippets = ["() => {}", `[...arr1, ...arr2]`, `if (x !== null && y === 0) {}`, `import { a, b } from './module';`, `const obj = { key: 'value' };`, `arr.map(x => x * 2);`];
+
+            // --- Game State ---
+            let gameHistory = [];
+            let timer;
+            let time = 0;
+            let currentSnippet = '';
+            let typedChars = 0;
+            let errors = 0;
+            let errorLog = {};
+            let keystrokeLog = [];
+            let wpmLog = [];
+            let lastWpmLogTime = 0;
+            let gameActive = false;
+            let historyChart;
+            let liveWpmChart;
+            let currentMode = 'snippet';
+            let isMuted = true; // Muted by default since audio files are placeholders
+
+            // --- NEW: Achievements State ---
+            const achievements = {
+                'speed_demon': { name: "Speed Demon", description: "Reach 80 WPM.", icon: '⚡' },
+                'the_surgeon': { name: "The Surgeon", description: "100% accuracy on a long snippet.", icon: '🎯' },
+                'unstoppable': { name: "Unstoppable", description: "Maintain a 3-day practice streak.", icon: '🔥' },
+                'symbol_sensei': { name: "Symbol Sensei", description: "Score 1000+ in Symbol Sprint.", icon: '🧑‍💻' },
+                'word_weaver': { name: "Word Weaver", description: "Score 5000+ in Tech Rush.", icon: '✍️' },
+            };
+            let userAchievements = {};
+
+            // --- Functions ---
+            const loadNewSnippet = () => {
+                let snippetArray;
+                currentMode = document.querySelector('.mode-btn.active-mode').id.replace('mode-', '');
+
+                if (currentMode === 'snippet') snippetArray = snippets;
+                else if (currentMode === 'rush') snippetArray = paragraphSnippets;
+                else if (currentMode === 'symbols') snippetArray = symbolSnippets;
+                else if (currentMode === 'workout') {
+                    currentSnippet = generateWorkoutSnippet();
+                    displaySnippet();
+                    return;
+                }
+
+                const randomIndex = Math.floor(Math.random() * snippetArray.length);
+                currentSnippet = snippetArray[randomIndex];
+                displaySnippet();
+            };
+
+            const displaySnippet = () => {
+                snippetDisplay.innerHTML = '';
+                currentSnippet.split('').forEach(char => {
+                    const charSpan = document.createElement('span');
+                    charSpan.innerText = char;
+                    snippetDisplay.appendChild(charSpan);
+                });
+                if (snippetDisplay.firstChild) snippetDisplay.firstChild.classList.add('current-char');
+                resetGameState();
+            };
+
+            const resetGameState = () => {
+                clearInterval(timer);
+                gameActive = false;
+                typedChars = 0;
+                errors = 0;
+                errorLog = {};
+                keystrokeLog = [];
+                wpmLog = [];
+                lastWpmLogTime = 0;
+
+                if (currentMode === 'rush' || currentMode === 'symbols') { time = 30; timerEl.innerText = '30s'; }
+                else { time = 0; timerEl.innerText = '0s'; }
+
+                wpmEl.innerText = '0';
+                accuracyEl.innerText = '100%';
+                consistencyEl.innerText = '--';
+                techScoreEl.innerText = '0';
+                typingInput.value = '';
+                typingInput.disabled = false;
+                typingInput.focus();
+                errorAnalysisSection.classList.add('hidden');
+                keystrokeAnalysisSection.classList.add('hidden');
+                renderLiveWpmChart();
+            };
+
+            const playSound = (audioElement) => {
+                if (!isMuted) {
+                    audioElement.currentTime = 0;
+                    audioElement.play().catch(e => console.error("Audio play failed: No audio file linked."));
+                }
+            };
+
+            const handleTyping = () => {
+                if (!gameActive && typingInput.value.length > 0) {
+                    gameActive = true;
+                    if (currentMode === 'rush' || currentMode === 'symbols') { time = 30; } else { time = 0; }
+                    timer = setInterval(updateTimer, 1000);
+                }
+
+                const userInput = typingInput.value;
+                const lastTypedChar = userInput.slice(-1);
+                let hadError = false;
+
+                if (userInput.length > typedChars) {
+                    keystrokeLog.push({ char: userInput.slice(-1), time: Date.now() });
+                    const correctChar = currentSnippet[typedChars];
+                    if (lastTypedChar !== correctChar) hadError = true;
+                } else {
+                    keystrokeLog.pop();
+                }
+
+                if (userInput.length > typedChars) playSound(hadError ? audioError : audioKeypress);
+
+                typedChars = userInput.length;
+                const snippetChars = snippetDisplay.querySelectorAll('span');
+                errors = 0;
+                errorLog = {};
+                snippetChars.forEach((charSpan, index) => {
+                    const typedChar = userInput[index];
+                    const correctChar = charSpan.innerText;
+                    charSpan.classList.remove('correct', 'incorrect', 'current-char');
+                    if (typedChar == null) { }
+                    else if (typedChar === correctChar) { charSpan.classList.add('correct'); }
+                    else {
+                        charSpan.classList.add('incorrect');
+                        errors++;
+                        errorLog[correctChar] = (errorLog[correctChar] || 0) + 1;
+                    }
+                });
+
+                if (typedChars < snippetChars.length) snippetChars[typedChars].classList.add('current-char');
+                updateStats();
+                if (currentMode === 'snippet' && typedChars === currentSnippet.length && errors === 0) endGame();
+            };
+
+            const updateTimer = () => {
+                const elapsedTime = (currentMode === 'rush' || currentMode === 'symbols') ? 30 - time + 1 : time + 1;
+                if (gameActive && elapsedTime > lastWpmLogTime && elapsedTime % 2 === 0) {
+                    const currentWpm = parseInt(wpmEl.innerText) || 0;
+                    wpmLog.push(currentWpm);
+                    lastWpmLogTime = elapsedTime;
+                    renderLiveWpmChart();
+                }
+
+                if (currentMode === 'rush' || currentMode === 'symbols') {
+                    time--;
+                    timerEl.innerText = `${time}s`;
+                    if (time <= 0) endGame();
+                } else {
+                    time++;
+                    timerEl.innerText = `${time}s`;
+                }
+            };
+
+            const updateStats = () => {
+                const correctChars = typedChars - errors;
+                const accuracy = typedChars === 0 ? 100 : Math.round((correctChars / typedChars) * 100);
+
+                if (accuracyEl.innerText !== `${accuracy}%`) {
+                    accuracyEl.innerText = `${accuracy}%`;
+                    accuracyEl.parentElement.classList.add('stat-update');
+                    setTimeout(() => accuracyEl.parentElement.classList.remove('stat-update'), 300);
+                }
+
+                const elapsedTime = (currentMode === 'rush' || currentMode === 'symbols') ? (30 - time) : time;
+                if (elapsedTime > 0) {
+                    const wpm = Math.round(((correctChars / 5) / elapsedTime) * 60);
+                    const finalWPM = wpm < 0 ? 0 : wpm;
+                    if (wpmEl.innerText !== `${finalWPM}`) {
+                        wpmEl.innerText = finalWPM;
+                        wpmEl.parentElement.classList.add('stat-update');
+                        setTimeout(() => wpmEl.parentElement.classList.remove('stat-update'), 300);
+                    }
+                } else {
+                    wpmEl.innerText = '0';
+                }
+            };
+
+            const endGame = () => {
+                if (!gameActive) return;
+                clearInterval(timer);
+                gameActive = false;
+                typingInput.disabled = true;
+                updateStats();
+                playSound(audioComplete);
+
+                const wpm = parseInt(wpmEl.innerText);
+                const accuracy = parseInt(accuracyEl.innerText.replace('%', ''));
+                const stdDev = calculateStdDev(wpmLog);
+                const consistency = Math.max(0, 100 - (stdDev * 2)).toFixed(0);
+                consistencyEl.innerText = `${consistency}%`;
+                const techScore = Math.round((wpm * (accuracy / 100)) * (1 + (consistency / 200)));
+                techScoreEl.innerText = techScore;
+                techScoreEl.parentElement.classList.add('stat-update');
+                setTimeout(() => techScoreEl.parentElement.classList.remove('stat-update'), 300);
+
+                const today = new Date();
+                const score = {
+                    wpm, accuracy, consistency, techScore, snippet: currentSnippet, mode: currentMode,
+                    errorLog: { ...errorLog }, // Save errors for workout mode
+                    isoDate: today.toISOString().split('T')[0],
+                    displayDate: today.toLocaleDateString()
+                };
+
+                gameHistory.unshift(score);
+                if (gameHistory.length > 20) gameHistory.pop();
+                saveHistory();
+                renderHistory();
+                displayErrorAnalysis();
+                displayKeystrokeAnalysis();
+
+                updateAndRenderActivity();
+                checkAchievements(score); // New
+            };
+
+            // --- NEW FEATURES ---
+
+            // 1. Weak Spot Workout
+            const getWeakSpots = (count = 5) => {
+                const allErrors = gameHistory.reduce((acc, game) => {
+                    if (game.errorLog) {
+                        for (const char in game.errorLog) {
+                            acc[char] = (acc[char] || 0) + game.errorLog[char];
+                        }
+                    }
+                    return acc;
+                }, {});
+                return Object.keys(allErrors).sort((a, b) => allErrors[b] - allErrors[a]).slice(0, count);
+            };
+
+            const generateWorkoutSnippet = () => {
+                const weakChars = getWeakSpots(5);
+                if (weakChars.length < 2) {
+                    return "Practice more to identify your weak spots!";
+                }
+                let workoutSnippet = "";
+                const commonWords = ["the", "and", "for", "with", "from", "that", "this", "dev", "code", "run"];
+                for (let i = 0; i < 8; i++) {
+                    const char1 = weakChars[Math.floor(Math.random() * weakChars.length)];
+                    const char2 = weakChars[Math.floor(Math.random() * weakChars.length)];
+                    const word = commonWords[Math.floor(Math.random() * commonWords.length)];
+                    workoutSnippet += `${char1}${word}${char2} `;
+                }
+                return workoutSnippet.trim().slice(0, 60); // Keep it short
+            };
+
+            // 2. Achievements
+            const saveAchievements = () => localStorage.setItem('typeTechAchievements', JSON.stringify(userAchievements));
+            const loadAchievements = () => {
+                const saved = localStorage.getItem('typeTechAchievements');
+                if (saved) userAchievements = JSON.parse(saved);
+            };
+
+            const renderAchievements = () => {
+                achievementsList.innerHTML = Object.entries(achievements).map(([key, ach]) => {
+                    const isUnlocked = userAchievements[key];
+                    return `
+                <div class="achievement-badge ${isUnlocked ? 'unlocked' : ''} p-3 bg-slate-100 dark:bg-slate-700 rounded-lg text-center" title="${ach.description}">
+                    <div class="text-4xl">${ach.icon}</div>
+                    <p class="text-xs font-semibold mt-2 text-slate-700 dark:text-slate-200">${ach.name}</p>
+                </div>`;
+                }).join('');
+            };
+
+            const displayAchievementNotification = (achievement) => {
+                toastIcon.innerText = achievement.icon;
+                toastName.innerText = achievement.name;
+                achievementToast.classList.remove('hidden', 'closing');
+                achievementToast.classList.add('toast');
+                setTimeout(() => {
+                    achievementToast.classList.add('closing');
+                    setTimeout(() => achievementToast.classList.add('hidden'), 500);
+                }, 4000);
+            };
+
+            const checkAchievements = (lastScore) => {
+                let newUnlocks = [];
+                const streak = parseInt(currentStreakEl.innerText) || 0;
+
+                if (!userAchievements.speed_demon && lastScore.wpm >= 80) { userAchievements.speed_demon = true; newUnlocks.push(achievements.speed_demon); }
+                if (!userAchievements.the_surgeon && lastScore.accuracy === 100 && lastScore.snippet.length > 50) { userAchievements.the_surgeon = true; newUnlocks.push(achievements.the_surgeon); }
+                if (!userAchievements.unstoppable && streak >= 3) { userAchievements.unstoppable = true; newUnlocks.push(achievements.unstoppable); }
+                if (!userAchievements.symbol_sensei && lastScore.mode === 'symbols' && lastScore.techScore >= 1000) { userAchievements.symbol_sensei = true; newUnlocks.push(achievements.symbol_sensei); }
+                if (!userAchievements.word_weaver && lastScore.mode === 'rush' && lastScore.techScore >= 5000) { userAchievements.word_weaver = true; newUnlocks.push(achievements.word_weaver); }
+
+                if (newUnlocks.length > 0) {
+                    saveAchievements();
+                    renderAchievements();
+                    displayAchievementNotification(newUnlocks[0]); // Show first unlocked
+                }
+            };
+
+            // --- Original Features ---
+            const updateAndRenderActivity = () => {
+                if (gameHistory.length === 0) {
+                    currentStreakEl.innerHTML = `0 Days 🔥`;
+                    totalDaysEl.innerHTML = `0 Days 🗓️`;
+                    return;
+                }
+                const practiceDates = [...new Set(gameHistory.map(s => s.isoDate))].sort();
+                const totalDays = practiceDates.length;
+
+                let currentStreak = 0;
+                const today = new Date();
+                let checkDate = new Date(today);
+
+                if (practiceDates.includes(today.toISOString().split('T')[0])) {
+                    for (let i = practiceDates.length - 1; i >= 0; i--) {
+                        const practiceDateStr = practiceDates[i];
+                        const checkDateStr = checkDate.toISOString().split('T')[0];
+                        if (practiceDateStr === checkDateStr) {
+                            currentStreak++;
+                            checkDate.setDate(checkDate.getDate() - 1);
+                        } else {
+                            break;
+                        }
+                    }
+                } else { // Check if yesterday was the last practice day
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    if (practiceDates.includes(yesterday.toISOString().split('T')[0])) {
+                        for (let i = practiceDates.length - 1; i >= 0; i--) {
+                            const practiceDateStr = practiceDates[i];
+                            const checkDateStr = checkDate.toISOString().split('T')[0];
+                            if (practiceDateStr === checkDateStr) {
+                                currentStreak++;
+                                checkDate.setDate(checkDate.getDate() - 1);
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                currentStreakEl.innerHTML = `${currentStreak} Day${currentStreak !== 1 ? 's' : ''} 🔥`;
+                totalDaysEl.innerHTML = `${totalDays} Day${totalDays !== 1 ? 's' : ''} 🗓️`;
+            };
+
+            const renderHistoryChart = () => {
+                if (historyChart) historyChart.destroy();
+                if (gameHistory.length < 2) { chartCanvas.style.display = 'none'; return; }
+                chartCanvas.style.display = 'block';
+
+                const reversedHistory = [...gameHistory].reverse();
+                const labels = reversedHistory.map((_, index) => `G${index + 1}`);
+                const wpmData = reversedHistory.map(score => score.wpm);
+                const accuracyData = reversedHistory.map(score => score.accuracy);
+
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                const textColor = isDarkMode ? '#e2e8f0' : '#334155';
+
+                historyChart = new Chart(chartCanvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels, datasets: [
+                            { label: 'WPM', data: wpmData, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', fill: false, tension: 0.3, yAxisID: 'yWPM' },
+                            { label: 'Accuracy (%)', data: accuracyData, borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: false, tension: 0.3, yAxisID: 'yAccuracy' }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'top', labels: { color: textColor } }, tooltip: { mode: 'index', intersect: false } },
+                        scales: {
+                            yWPM: { type: 'linear', display: true, position: 'left', beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor }, title: { display: true, text: 'WPM', color: '#22c55e' } },
+                            yAccuracy: { type: 'linear', display: true, position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, ticks: { color: textColor }, title: { display: true, text: 'Accuracy', color: '#4f46e5' } },
+                            x: { grid: { color: gridColor }, ticks: { color: textColor } }
+                        }
+                    }
+                });
+            };
+
+            const renderHistory = () => {
+                historyList.innerHTML = gameHistory.length === 0 ? `<p class="text-slate-400 dark:text-slate-500 text-center">No scores yet. Complete a round to see your progress!</p>` : gameHistory.map(score => `
+                <div class="flex flex-wrap justify-between items-center p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                    <div class="flex-grow truncate pr-4 mb-2 sm:mb-0">
+                        <p class="font-mono text-slate-700 dark:text-slate-300" title="${score.snippet}">"${score.snippet.substring(0, 30)}..."</p>
+                        <p class="text-xs text-slate-400">${score.displayDate || score.date}</p>
+                    </div>
+                    <div class="flex-shrink-0 w-full sm:w-auto flex justify-around sm:justify-end items-center space-x-4">
+                        <div class="flex items-center space-x-2 text-violet-600 dark:text-violet-400" title="Tech Score"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M12 6V3m0 18v-3m6-9h3m-18 0h3m15-3l-2 2m-10-2l2 2m7 7l2 2m-10-2l-2 2" /></svg><span class="font-bold text-lg">${score.techScore}</span></div>
+                        <div class="flex items-center space-x-2 text-green-600 dark:text-green-400" title="WPM"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg><span class="font-bold text-lg">${score.wpm}</span></div>
+                        <div class="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400" title="Accuracy"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="font-bold text-lg">${score.accuracy}%</span></div>
+                    </div>
+                </div>`).join('');
+                renderHistoryChart();
+            };
+
+            const saveHistory = () => localStorage.setItem('typeTechHistory', JSON.stringify(gameHistory));
+            const loadHistory = () => {
+                const savedHistory = localStorage.getItem('typeTechHistory');
+                if (savedHistory) gameHistory = JSON.parse(savedHistory);
+                renderHistory();
+                updateAndRenderActivity();
+            };
+
+            const calculateStdDev = (arr) => { if (arr.length < 2) return 0; const mean = arr.reduce((a, b) => a + b) / arr.length; const variance = arr.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / arr.length; return Math.sqrt(variance); };
+            const displayErrorAnalysis = () => { const errorKeys = Object.keys(errorLog); if (errorKeys.length === 0) { errorAnalysisSection.classList.add('hidden'); return; } errorAnalysisSection.classList.remove('hidden'); const sortedErrors = errorKeys.sort((a, b) => errorLog[b] - errorLog[a]); errorList.innerHTML = sortedErrors.slice(0, 5).map(char => `<span class="error-char">'${char === ' ' ? 'Space' : char}' (${errorLog[char]}x)</span>`).join(''); };
+            const displayKeystrokeAnalysis = () => { const digraphs = {}; for (let i = 1; i < keystrokeLog.length; i++) { const prev = keystrokeLog[i - 1], curr = keystrokeLog[i]; if (currentSnippet[i - 1] === prev.char && currentSnippet[i] === curr.char) { const pair = `${prev.char}${curr.char}`.toLowerCase(); const timeDiff = curr.time - prev.time; if (!digraphs[pair]) digraphs[pair] = []; digraphs[pair].push(timeDiff); } } const avgDigraphs = Object.entries(digraphs).map(([pair, times]) => ({ pair, avg: times.reduce((a, b) => a + b, 0) / times.length, count: times.length })).filter(d => d.count > 1); if (avgDigraphs.length < 2) { keystrokeAnalysisSection.classList.add('hidden'); return; } keystrokeAnalysisSection.classList.remove('hidden'); avgDigraphs.sort((a, b) => a.avg - b.avg); fastestPairsEl.innerHTML = avgDigraphs.slice(0, 3).map(d => `<div class="analysis-pair bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300"><span>'${d.pair}'</span> <span>${d.avg.toFixed(0)}ms</span></div>`).join(''); slowestPairsEl.innerHTML = avgDigraphs.slice(-3).reverse().map(d => `<div class="analysis-pair bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300"><span>'${d.pair}'</span> <span>${d.avg.toFixed(0)}ms</span></div>`).join(''); };
+            const renderLiveWpmChart = () => { if (liveWpmChart) liveWpmChart.destroy(); const isDarkMode = document.documentElement.classList.contains('dark'); const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'; const textColor = isDarkMode ? '#e2e8f0' : '#334155'; const labels = wpmLog.map((_, i) => `${(i + 1) * 2}s`); liveWpmChart = new Chart(liveWpmCanvas.getContext('2d'), { type: 'line', data: { labels, datasets: [{ label: 'Live WPM', data: wpmLog, borderColor: '#a5b4fc', backgroundColor: 'rgba(165, 180, 252, 0.2)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { animation: { duration: 200 }, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: gridColor, drawBorder: false }, ticks: { color: textColor, stepSize: 20 } }, x: { grid: { display: false }, ticks: { color: textColor } } } } }); };
+            const applyTheme = (theme) => { document.documentElement.classList.toggle('dark', theme === 'dark'); renderHistoryChart(); renderLiveWpmChart(); };
+
+            // --- Event Listeners ---
+            const switchMode = (newMode) => {
+                if (currentMode === newMode && newMode !== 'workout') return;
+                currentMode = newMode;
+                [modeSnippetBtn, modeRushBtn, modeSymbolsBtn, modeWorkoutBtn].forEach(btn => btn.classList.remove('active-mode'));
+
+                let btnToActivate;
+                if (newMode === 'snippet') { btnToActivate = modeSnippetBtn; subtitle.innerText = 'Increase your speed by typing tech facts and code!'; }
+                else if (newMode === 'rush') { btnToActivate = modeRushBtn; subtitle.innerText = 'Type as much as you can in 30 seconds!'; }
+                else if (newMode === 'symbols') { btnToActivate = modeSymbolsBtn; subtitle.innerText = 'Master code symbols in this 30-second sprint!'; }
+                else { btnToActivate = modeWorkoutBtn; subtitle.innerText = 'Target your weak spots with a custom workout!'; }
+
+                btnToActivate.classList.add('active-mode');
+                loadNewSnippet();
+            }
+
+            modeSnippetBtn.addEventListener('click', () => switchMode('snippet'));
+            modeRushBtn.addEventListener('click', () => switchMode('rush'));
+            modeSymbolsBtn.addEventListener('click', () => switchMode('symbols'));
+            modeWorkoutBtn.addEventListener('click', () => switchMode('workout'));
+
+            muteButton.addEventListener('click', () => { isMuted = !isMuted; iconUnmuted.classList.toggle('hidden', isMuted); iconMuted.classList.toggle('hidden', !isMuted); });
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+            applyTheme(prefersDark.matches ? 'dark' : 'light');
+            prefersDark.addEventListener('change', (event) => applyTheme(event.matches ? 'dark' : 'light'));
+            typingInput.addEventListener('input', handleTyping);
+            resetButton.addEventListener('click', loadNewSnippet);
+            snippetDisplay.addEventListener('click', () => typingInput.focus());
+            typingInput.addEventListener('focus', () => snippetDisplay.classList.add('focused'));
+            typingInput.addEventListener('blur', () => snippetDisplay.classList.remove('focused'));
+            clearHistoryButton.addEventListener('click', () => {
+                if (confirm("Are you sure you want to clear all your progress history? This cannot be undone.")) {
+                    gameHistory = [];
+                    saveHistory();
+                    renderHistory();
+                    updateAndRenderActivity();
+                }
+            });
+
+            // Custom Text Listeners
+            customTextBtn.addEventListener('click', () => customTextModal.classList.remove('hidden'));
+            customTextCancelBtn.addEventListener('click', () => customTextModal.classList.add('hidden'));
+            customTextStartBtn.addEventListener('click', () => {
+                const text = customTextInput.value.trim();
+                if (text.length >= 20) {
+                    currentMode = 'custom';
+                    currentSnippet = text;
+                    [modeSnippetBtn, modeRushBtn, modeSymbolsBtn, modeWorkoutBtn].forEach(btn => btn.classList.remove('active-mode'));
+                    subtitle.innerText = "Practicing your custom text!";
+                    displaySnippet();
+                    customTextModal.classList.add('hidden');
+                } else {
+                    alert("Please provide text that is at least 20 characters long.");
+                }
+            });
+
+            // --- Initial Load ---
+            loadHistory();
+            loadAchievements();
+            renderAchievements();
+            loadNewSnippet();
+        });
+    </script>
+</body>
+
+</html>
